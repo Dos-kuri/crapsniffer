@@ -56,7 +56,19 @@ The Mac version is a standard installer: `CrapSniffer-<version>-macOS-arm64.dmg`
    ```
 
    It installs everything it needs, builds the app, checks it on test audio, and writes the .dmg to `dist/`. It takes about 5–10 minutes. Build on an Apple Silicon Mac for Apple Silicon users, and on an Intel Mac for Intel users.
-2. **Without a Mac, on GitHub (free):** put the project in a GitHub repository, open its **Actions** tab, and run **Build installers**. GitHub builds both Mac .dmgs (Apple Silicon and Intel) and the Windows .exe on its own machines, tests each one, and offers them as downloads under the run's **Artifacts**. The workflow is `.github/workflows/build.yml`.
+2. **Without a Mac, on GitHub (free):** the project lives at `github.com/Dos-kuri/crapsniffer`. GitHub builds both Mac .dmgs (Apple Silicon and Intel) and the Windows .exe on its own machines, and tests each one. The workflow is `.github/workflows/build.yml`.
+   - **To publish a version,** push a tag such as `v1.2.0`:
+
+     ```bash
+     git tag v1.2.0
+     ```
+
+     ```bash
+     git push origin v1.2.0
+     ```
+
+     When the builds pass, a **GitHub Release** named "CrapSniffer 1.2.0" appears on the repository's **Releases** page with all three installers attached and download instructions. Releases are kept permanently.
+   - **For a test build without a release,** go to **Actions → Build installers → Run workflow**. The installers appear under that run's **Artifacts** and are deleted after 90 days.
 
 **First launch on another Mac:** the app isn't signed with a paid Apple Developer ID, so macOS blocks it the first time with *"CrapSniffer" cannot be opened* or *"Apple could not verify…"*. To allow it once:
 
