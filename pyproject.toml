@@ -1,0 +1,32 @@
+[project]
+name = "crapsniffer"
+version = "0.1.0"
+description = 'The ultimate lie detector for your crates. Because fake "320kbps" sound like absolute shit on a real sound system.'
+requires-python = ">=3.12"
+dependencies = [
+    "imageio-ffmpeg>=0.6.0",
+    "matplotlib>=3.11.2",
+    "mutagen>=1.48.1",
+    "numpy>=2.5.4",
+    "pywebview>=6.2.1",
+    "scipy>=1.18.1",
+    "soundfile>=0.14.0",
+]
+[project.scripts]
+crapsniffer = "lossy_detect.cli:main"
+
+[project.gui-scripts]
+crapsniffer-app = "lossy_detect.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["lossy_detect"]
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.22.3",
+    "pytest>=9.1.1",
+]

@@ -1,0 +1,65 @@
+# Builds the CrapSniffer installers on GitHub's own machines - no Mac needed.
+#   macOS: CrapSniffer-<version>-macOS-arm64.dmg (Apple Silicon) and -x86_64.dmg (Intel)
+#   Windows: CrapSniffer.exe
+# Run it from the repository's Actions tab ("Build installers" > "Run workflow"), or push a tag
+# like v1.0.0. Each build self-tests the packaged app on real audio before uploading it.
+# Download the results from the run's "Artifacts" section.
+
+name: Build installers
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version number shown in the app
+        default: "1.0.0"
+  push:
+    tags: ["v*"]
+
+jobs:
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15         # Apple Silicon (arm64)
+          - runner: macos-15-intel   # Intel (x86_64)
+    runs-on: ${{ matrix.runner }}
+    env:
+      CRAPSNIFFER_VERSION: ${{ github.event.inputs.version || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Build, self-test and package
+        run: |
+          export CRAPSNIFFER_VERSION="${CRAPSNIFFER_VERSION#v}"
+          bash packaging/build_macos.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CrapSniffer-macOS-${{ runner.arch }}
+          path: dist/*.dmg
+          if-no-files-found: error
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Build
+        run: |
+          uv sync --python 3.14 --frozen
+          uv run --no-sync pyinstaller packaging/crapsniffer.spec --noconfirm
+      - name: Self-test the packaged exe
+        shell: pwsh
+        run: |
+          uv run --no-sync python tools/make_test_files.py build/selftest | Out-Null
+          $files = "build/selftest/clean_16bit.wav", "build/selftest/mp3_128.wav", "build/selftest/_tmp/aac_128.m4a"
+          Start-Process dist/CrapSniffer.exe -ArgumentList (@("--self-test", "build/selftest.json") + $files) -Wait
+          $r = Get-Content build/selftest.json -Raw | ConvertFrom-Json
+          $r.files | Format-Table file, quality, status, grid, error
+          if (-not $r.frozen -or ($r.files | Where-Object { $_.error })) { exit 1 }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CrapSniffer-Windows
+          path: dist/CrapSniffer.exe
+          if-no-files-found: error

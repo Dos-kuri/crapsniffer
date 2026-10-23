@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CrapSniffer</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --surface: #171a21;
+    --surface-2: #1e222b;
+    --border: #2a2f3a;
+    --text: #e8eaf0;
+    --muted: #9097a6;
+    --accent: #6c8cff;
+    --accent-strong: #5576ff;
+    --good: #3ecf8e;
+    --ok: #a3d65c;
+    --warn: #f5b84a;
+    --bad: #f0605d;
+    --info: #6c8cff;
+    --radius: 14px;
+    --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased; user-select: none;
+  }
+  main { max-width: 940px; margin: 0 auto; padding: 28px 24px 40px; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }
+  .logo {
+    width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent), #9b6cff); color: #fff; flex: none;
+  }
+  h1 { font-size: 21px; margin: 0; letter-spacing: -.01em; }
+  .subtitle { color: var(--muted); margin: 0; font-size: 14px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  [hidden] { display: none !important; }
+  .muted { color: var(--muted); }
+
+  /* ---------- pick ---------- */
+  .dropzone {
+    border: 2px dashed var(--border); border-radius: var(--radius); background: var(--surface);
+    min-height: 300px; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; text-align: center; padding: 28px;
+    transition: border-color .15s, background .15s, transform .15s;
+  }
+  .dropzone.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); transform: scale(1.01); }
+  .dropzone .big-icon { color: var(--accent); margin-bottom: 10px; }
+  .dropzone h2 { margin: 0 0 4px; font-size: 19px; }
+  .dropzone p { margin: 0; color: var(--muted); }
+  .link { color: var(--accent); background: none; border: 0; font: inherit; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 3px; }
+  .formats { margin-top: 18px !important; font-size: 12.5px; }
+  .queue { width: 100%; max-width: 640px; min-width: 0; text-align: left; }
+  .queue-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 10px; }
+  .queue-head b { font-size: 15px; }
+  .queue-head span { white-space: nowrap; }
+  .queue-list { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; }
+  .file {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 11px; padding: 10px 12px;
+  }
+  .ficon { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); flex: none; }
+  .file .grow { flex: 1; min-width: 0; }
+  .fname { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fmeta { color: var(--muted); font-size: 12.5px; }
+  .fmeta .w { color: var(--warn); }
+  .x { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 20px; line-height: 1; padding: 2px 6px; border-radius: 6px; }
+  .x:hover { color: var(--text); background: var(--border); }
+  .queue-foot { margin-top: 12px !important; font-size: 13px; }
+  .actions { display: flex; justify-content: center; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
+  .btn {
+    font: 600 15px/1 inherit; font-family: inherit; border: 0; border-radius: 11px; cursor: pointer;
+    padding: 14px 34px; background: var(--accent); color: #fff; box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 35%, transparent);
+    transition: background .15s, transform .1s, opacity .15s;
+  }
+  .btn:hover { background: var(--accent-strong); }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+  .btn.secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); box-shadow: none; }
+  .btn.secondary:hover { background: var(--border); }
+  .btn.small { padding: 9px 16px; font-size: 13.5px; border-radius: 9px; }
+
+  /* ---------- single-file busy ---------- */
+  .busy { padding: 56px 32px; text-align: center; }
+  .spinner {
+    width: 54px; height: 54px; border-radius: 50%; margin: 0 auto 20px;
+    border: 4px solid var(--border); border-top-color: var(--accent); animation: spin .9s linear infinite;
+  }
+  .spinner.sm { width: 14px; height: 14px; border-width: 2px; margin: 0; display: inline-block; vertical-align: -2px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .busy h2 { margin: 0 0 4px; font-size: 18px; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .busy .stage { color: var(--muted); min-height: 1.5em; }
+  .bar { height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; max-width: 380px; margin: 22px auto 0; }
+  .bar > div { height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
+
+  /* ---------- batch ---------- */
+  .batch-head { padding: 22px 24px; }
+  .batch-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .batch-top h2 { margin: 0; font-size: 19px; }
+  .batch-top > div:first-child { flex: 1 1 260px; min-width: 0; }
+  .batch-top .sub { color: var(--muted); font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .batch-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .batch-head .bar { max-width: none; margin: 16px 0 0; }
+  .counts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .c-file { width: 31%; } .c-q { width: 15%; } .c-res { width: 21%; } .c-eq { width: 20%; } .c-cut { width: 92px; } .c-go { width: 28px; }
+  th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; padding: 12px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th.sortable { cursor: pointer; }
+  th.sortable:hover { color: var(--text); }
+  th .arrow { opacity: .7; }
+  td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; font-size: 14px; }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr.done { cursor: pointer; }
+  tbody tr.done:hover td { background: var(--surface-2); }
+  td.name { overflow: hidden; }
+  td.name .fname { font-weight: 600; }
+  td.name .fmeta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .qcell { display: flex; align-items: center; gap: 8px; }
+  .qcell b { font-size: 18px; min-width: 36px; text-align: right; flex: none; white-space: nowrap; }
+  .mini { flex: 1; height: 6px; border-radius: 99px; background: var(--surface-2); overflow: hidden; min-width: 24px; }
+  .mini > div { height: 100%; border-radius: 99px; }
+  .rowbar { height: 4px; border-radius: 99px; background: var(--surface-2); overflow: hidden; margin-top: 6px; max-width: 160px; }
+  .rowbar > div { height: 100%; background: var(--accent); transition: width .4s ease; }
+  .err { color: var(--bad); font-size: 13px; overflow-wrap: anywhere; }
+  td .chip { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; font-size: 11px; padding: 3px 9px; }
+  td .chip::before { display: inline-block; margin-right: 6px; vertical-align: 1px; }
+  td .muted { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .open { color: var(--muted); font-size: 18px; }
+
+  /* ---------- result ---------- */
+  .track { display: flex; gap: 18px; align-items: center; padding: 20px 28px; border-bottom: 1px solid var(--border);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%); border-radius: var(--radius) var(--radius) 0 0; }
+  .cover { width: 84px; height: 84px; border-radius: 10px; object-fit: cover; flex: none; box-shadow: 0 6px 18px rgba(0,0,0,.45); background: var(--surface-2); }
+  .cover-ph { width: 84px; height: 84px; border-radius: 10px; flex: none; display: grid; place-items: center; background: var(--surface-2); color: var(--muted); }
+  .track > div:last-child { flex: 1; min-width: 0; }
+  .track .ttl { font-size: 19px; font-weight: 700; line-height: 1.25; letter-spacing: -.01em; user-select: text; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .track .art, .track .alb { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text; }
+  .track .art { font-size: 15px; margin-top: 2px; }
+  .track .alb { color: var(--muted); font-size: 13.5px; margin-top: 4px; }
+  .tagrow { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .tagrow span { font-size: 12px; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 1px 8px; }
+  .result-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 14px;
+    margin: -28px -24px 16px; padding: 12px 24px; border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg) 85%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+  .result-bar .btn { flex: none; }
+  .rb-name { flex: 1; min-width: 0; color: var(--muted); font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hero { display: flex; gap: 30px; align-items: center; padding: 28px; }
+  .hero > div:last-child { flex: 1; min-width: 0; }
+  .gauge { position: relative; width: 168px; height: 168px; flex: none; }
+  .gauge svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .gauge .track { stroke: var(--surface-2); }
+  .gauge .value { transition: stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1), stroke .3s; stroke-linecap: round; }
+  .gauge .num { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+  .gauge .num b { display: block; font-size: 50px; line-height: 1; letter-spacing: -.03em; }
+  .gauge .num span { color: var(--muted); font-size: 13px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; border-radius: 99px; padding: 4px 11px;
+    font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap;
+  }
+  .chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .chip.good { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+  .chip.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+  .chip.bad  { color: var(--bad);  background: color-mix(in srgb, var(--bad) 14%, transparent); }
+  .chip.muted { color: var(--muted); background: var(--surface-2); }
+  .hero h2 { margin: 10px 0 6px; font-size: 21px; line-height: 1.3; letter-spacing: -.01em; overflow-wrap: anywhere; }
+  .hero .qlabel { color: var(--muted); margin: 0; }
+  .hero .fname { color: var(--muted); font-size: 13px; margin-top: 12px; white-space: normal; overflow-wrap: anywhere; font-weight: 400; user-select: text; }
+  .scale { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+  .scale span { font-size: 11.5px; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 2px 7px; }
+  .scale span.on { color: var(--text); border-color: var(--accent); }
+
+  .facts { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--border); }
+  .fact { padding: 14px 20px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .fact:nth-child(3n) { border-right: 0; }
+  .fact:nth-last-child(-n+3) { border-bottom: 0; }
+  .fact .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+  .fact { min-width: 0; }
+  .fact .v { font-weight: 600; margin-top: 2px; overflow-wrap: anywhere; }
+
+  section.block { margin-top: 18px; padding: 20px 22px; }
+  section.block h3 { margin: 0 0 12px; font-size: 15px; }
+  .finding { display: flex; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+  .finding:first-of-type { border-top: 0; padding-top: 2px; }
+  .pill { flex: none; width: 82px; text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; border-radius: 6px; padding: 3px 0; height: fit-content; margin-top: 2px; }
+  .pill.strong { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+  .pill.moderate { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+  .pill.weak { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+  .pill.info { color: var(--info); background: color-mix(in srgb, var(--info) 14%, transparent); }
+  .pill.none { color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); }
+  .finding > div:last-child { min-width: 0; }
+  .finding .t { font-weight: 600; overflow-wrap: anywhere; }
+  .finding .d { color: var(--muted); font-size: 13.5px; margin-top: 2px; user-select: text; overflow-wrap: anywhere; }
+  details { margin-top: 6px; }
+  summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 14px; padding: 6px 0; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "\25B8"; display: inline-block; margin-right: 6px; transition: transform .15s; }
+  details[open] > summary::before { transform: rotate(90deg); }
+  .notes li { color: var(--muted); font-size: 13.5px; margin: 4px 0; user-select: text; overflow-wrap: anywhere; }
+  .plot { display: block; width: 100%; border-radius: 10px; margin-top: 10px; background: var(--surface-2); }
+  .plot:not([src]) { aspect-ratio: 12 / 11; }
+  .error { margin-top: 18px; padding: 14px 18px; border-radius: 12px; color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent); user-select: text; overflow-wrap: anywhere; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); border-radius: 10px; padding: 10px 16px; font-size: 14px; max-width: calc(100% - 32px); overflow-wrap: anywhere; }
+
+  @media (max-width: 720px) {
+    main { padding: 18px 16px 32px; }
+    .result-bar { margin: -18px -16px 14px; padding: 10px 16px; }
+    .hero { flex-direction: column; text-align: center; padding: 22px 18px; }
+    .scale { justify-content: center; }
+    .facts { grid-template-columns: repeat(2, 1fr); }
+    .fact:nth-child(3n) { border-right: 1px solid var(--border); }
+    .fact:nth-child(2n) { border-right: 0; }
+    .fact:nth-last-child(-n+3) { border-bottom: 1px solid var(--border); }
+    .fact:nth-last-child(-n+2) { border-bottom: 0; }
+    .pill { width: 70px; }
+    .hide-sm { display: none; }
+    .c-file { width: 44%; } .c-q { width: 20%; } .c-res { width: 36%; }
+    .mini { display: none; }
+    .qcell { justify-content: flex-start; }
+    .qcell b { min-width: 0; text-align: left; }
+    td, th { padding: 10px 8px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="logo" aria-hidden="true">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M15.5 15.5 21 21M6 10h1.2l1.2-2.5 1.6 5 1.4-3.5H14"/></svg>
+    </div>
+    <div>
+      <h1>CrapSniffer</h1>
+      <p class="subtitle">The ultimate lie detector for your crates. Because fake &ldquo;320kbps&rdquo; sound like absolute shit on a real sound system.</p>
+    </div>
+  </header>
+
+  <!-- 1. pick files -->
+  <div id="pick">
+    <div class="dropzone" id="dropzone">
+      <div id="empty">
+        <div class="big-icon" aria-hidden="true">
+          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </div>
+        <h2>Drag &amp; drop audio files or folders here</h2>
+        <p>or <button class="link" id="browse">browse for files</button> · <button class="link" id="browse-folder">choose a folder</button></p>
+        <p class="formats">MP3 · FLAC · WAV · AIFF · M4A/AAC · ALAC · OGG · Opus · WMA</p>
+      </div>
+      <div class="queue" id="queue" hidden>
+        <div class="queue-head">
+          <b id="queue-title"></b>
+          <span><button class="link" id="add-more">Add files</button> · <button class="link" id="add-folder">Add folder</button> · <button class="link" id="clear">Clear</button></span>
+        </div>
+        <div class="queue-list" id="queue-list"></div>
+        <p class="formats queue-foot">Drop more files or folders here to add them.</p>
+      </div>
+    </div>
+    <div class="actions"><button class="btn" id="analyze" disabled>Analyze</button></div>
+  </div>
+
+  <!-- 2a. single file working -->
+  <div id="busy" class="card busy" hidden>
+    <div class="spinner"></div>
+    <h2>Analyzing <span id="busy-name"></span></h2>
+    <div class="stage" id="stage">Starting…</div>
+    <div class="bar"><div id="bar"></div></div>
+  </div>
+
+  <!-- 2b. batch -->
+  <div id="batch" hidden>
+    <div class="card batch-head">
+      <div class="batch-top">
+        <div>
+          <h2 id="batch-title"></h2>
+          <div class="sub" id="batch-sub"></div>
+        </div>
+        <div class="batch-btns">
+          <button class="btn secondary small" id="stop">Stop</button>
+          <button class="btn secondary small" id="export" hidden>Export CSV</button>
+          <button class="btn small" id="new-batch" hidden>Analyze more files</button>
+        </div>
+      </div>
+      <div class="bar"><div id="batch-bar"></div></div>
+      <div class="counts" id="counts"></div>
+    </div>
+    <div class="card" style="margin-top:16px; overflow:hidden">
+      <table>
+        <colgroup><col class="c-file"><col class="c-q"><col class="c-res"><col class="c-eq hide-sm"><col class="c-cut hide-sm"><col class="c-go"></colgroup>
+        <thead><tr>
+          <th class="sortable" data-sort="name">File <span class="arrow"></span></th>
+          <th class="sortable" data-sort="quality">Quality <span class="arrow"></span></th>
+          <th class="sortable" data-sort="status">Result <span class="arrow"></span></th>
+          <th class="hide-sm">Equivalent to</th>
+          <th class="hide-sm">Cutoff</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 3. one file's result -->
+  <div id="result" hidden>
+    <div class="result-bar" id="result-bar" hidden>
+      <button class="btn secondary small" id="back">&larr; All results</button>
+      <span class="rb-name" id="rb-name"></span>
+    </div>
+    <div class="card">
+      <div class="track" id="track" hidden>
+        <img class="cover" id="cover" alt="Cover art" hidden>
+        <div class="cover-ph" id="cover-ph" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/></svg></div>
+        <div style="min-width:0">
+          <div class="ttl" id="t-title"></div>
+          <div class="art" id="t-artist"></div>
+          <div class="alb" id="t-album"></div>
+          <div class="tagrow" id="t-tags"></div>
+        </div>
+      </div>
+      <div class="hero">
+        <div class="gauge">
+          <svg viewBox="0 0 120 120">
+            <circle class="track" cx="60" cy="60" r="52" fill="none" stroke-width="11"/>
+            <circle class="value" id="gauge-arc" cx="60" cy="60" r="52" fill="none" stroke-width="11"
+                    stroke-dasharray="326.73" stroke-dashoffset="326.73"/>
+          </svg>
+          <div class="num"><div><b id="q">0</b><span>quality / 100</span></div></div>
+        </div>
+        <div>
+          <span class="chip" id="chip"></span>
+          <h2 id="verdict"></h2>
+          <p class="qlabel" id="qlabel"></p>
+          <div class="scale" id="scale"></div>
+          <div class="fname" id="rname"></div>
+        </div>
+      </div>
+      <div class="facts" id="facts"></div>
+    </div>
+
+    <section class="card block">
+      <h3>What we found</h3>
+      <div id="findings"></div>
+      <details id="passed-wrap">
+        <summary id="passed-sum"></summary>
+        <div id="passed"></div>
+      </details>
+    </section>
+
+    <section class="card block" id="notes-wrap" hidden>
+      <h3>Processing notes</h3>
+      <ul class="notes" id="notes"></ul>
+    </section>
+
+    <section class="card block">
+      <details id="plot-wrap">
+        <summary>Spectrogram &amp; diagnostic plots</summary>
+        <img class="plot" id="plot" alt="Spectrogram, long-term spectrum and frame-grid scan">
+      </details>
+    </section>
+
+    <div class="actions">
+      <button class="btn secondary" id="again">Analyze other files</button>
+    </div>
+  </div>
+
+  <div class="error" id="error" hidden></div>
+  <div class="toast" id="toast" hidden></div>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const api = () => window.pywebview && window.pywebview.api;
+
+  // queue: files waiting to be analysed; jobs: the current run, one per file
+  let queue = [];
+  let jobs = [];
+  let nextId = 1;
+  let stopRequested = false;
+  let running = false;
+  let sort = {key: null, dir: 1};
+
+  const SCALE = [[100, "320k / lossless"], [90, "256k"], [80, "192k"], [65, "160k"], [55, "128k"], [40, "96k"], [20, "64k"]];
+
+  function show(view) {
+    for (const v of ["pick", "busy", "batch", "result"]) $(v).hidden = v !== view;
+    window.scrollTo(0, 0);
+  }
+  function fmtSize(b) { if (b == null) return "size unknown"; return b > 1e6 ? (b / 1e6).toFixed(1) + " MB" : (b / 1e3).toFixed(0) + " KB"; }
+  function fmtTime(s) { const m = Math.floor(s / 60), r = Math.round(s % 60); return m + ":" + String(r).padStart(2, "0"); }
+  function color(q) { return q >= 90 ? "var(--good)" : q >= 70 ? "var(--ok)" : q >= 50 ? "var(--warn)" : "var(--bad)"; }
+  function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c])); }
+  function folderOf(p) { const i = Math.max(p.lastIndexOf("\\"), p.lastIndexOf("/")); return i > 0 ? p.slice(0, i) : ""; }
+  function showError(msg) { $("error").textContent = msg; $("error").hidden = false; }
+  let toastTimer;
+  function toast(msg) {
+    $("toast").textContent = msg; $("toast").hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => ($("toast").hidden = true), 3500);
+  }
+
+  // ---------------------------------------------------------------- queue
+  window.onFilesAdded = (infos) => {
+    if (running) return toast("Wait for the current analysis to finish, or stop it first.");
+    if (!infos || !infos.length) return toast("No audio files found there.");
+    const have = new Set(queue.map((f) => f.path));
+    const fresh = infos.filter((f) => !have.has(f.path));
+    queue.push(...fresh);
+    if (fresh.length < infos.length) toast(`${infos.length - fresh.length} file(s) were already in the list.`);
+    $("error").hidden = true;
+    renderQueue();
+    show("pick");
+  };
+
+  function renderQueue() {
+    const n = queue.length;
+    $("empty").hidden = n > 0;
+    $("queue").hidden = n === 0;
+    $("analyze").disabled = n === 0;
+    $("analyze").textContent = n > 1 ? `Analyze ${n} files` : "Analyze";
+    $("queue-title").textContent = n === 1 ? "1 file ready" : `${n} files ready`;
+    $("queue-list").innerHTML = queue.map((f, i) => `
+      <div class="file">
+        <div class="ficon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
+        <div class="grow">
+          <div class="fname" title="${esc(f.path)}">${esc(f.name)}</div>
+          <div class="fmeta">${fmtSize(f.size)}${f.supported ? "" : ' · <span class="w">not a known audio type — will try anyway</span>'}</div>
+        </div>
+        <button class="x" data-i="${i}" title="Remove">&times;</button>
+      </div>`).join("");
+  }
+  $("queue-list").addEventListener("click", (e) => {
+    const b = e.target.closest(".x");
+    if (b) { queue.splice(+b.dataset.i, 1); renderQueue(); }
+  });
+  $("clear").onclick = () => { queue = []; renderQueue(); };
+
+  const dz = $("dropzone");
+  let depth = 0;
+  dz.addEventListener("dragenter", (e) => { e.preventDefault(); depth++; dz.classList.add("over"); });
+  dz.addEventListener("dragleave", () => { if (--depth <= 0) { depth = 0; dz.classList.remove("over"); } });
+  window.addEventListener("dragover", (e) => e.preventDefault());
+  window.addEventListener("drop", (e) => {
+    e.preventDefault();
+    depth = 0; dz.classList.remove("over");
+    if (!api()) showError("Drag and drop only works inside the CrapSniffer app window.");
+  });
+
+  async function browse(folder) {
+    if (!api()) return showError("Browsing needs the CrapSniffer app window.");
+    const infos = await (folder ? api().browse_folder() : api().browse());
+    if (infos && infos.length) window.onFilesAdded(infos);
+    else if (folder && infos) toast("No audio files found in that folder.");
+  }
+  $("browse").onclick = () => browse(false);
+  $("add-more").onclick = () => browse(false);
+  $("browse-folder").onclick = () => browse(true);
+  $("add-folder").onclick = () => browse(true);
+
+  // ---------------------------------------------------------------- running
+  window.onProgress = (id, stage, done) => {
+    const job = jobs.find((j) => j.id === id);
+    if (job) { job.stage = stage; job.done = done; }
+    if (jobs.length === 1) {
+      $("stage").textContent = stage + "…";
+      $("bar").style.width = Math.max(4, Math.round(done * 100)) + "%";
+    } else {
+      updateRow(job);
+      updateBatchHead();
+    }
+  };
+
+  $("analyze").onclick = async () => {
+    if (!queue.length || running) return;
+    $("error").hidden = true;
+    jobs = queue.map((f) => ({id: nextId++, file: f, state: "queued", done: 0, stage: "", result: null}));
+    queue = [];
+    renderQueue();
+    stopRequested = false;
+    running = true;
+    sort = {key: null, dir: 1};
+
+    if (jobs.length === 1) {
+      $("busy-name").textContent = jobs[0].file.name;
+    $("busy-name").parentElement.title = jobs[0].file.name;
+      window.onProgress(jobs[0].id, "Starting", 0);
+      show("busy");
+    } else {
+      renderTable();
+      updateBatchHead();
+      show("batch");
+    }
+
+    for (const job of jobs) {
+      if (stopRequested) { job.state = "skipped"; updateRow(job); continue; }
+      job.state = "running";
+      updateRow(job);
+      updateBatchHead();
+      const r = await api().analyze(job.file.path, job.id);
+      job.result = r;
+      job.state = r && r.ok ? "done" : "error";
+      if (jobs.length > 1) { updateRow(job); updateBatchHead(); }
+    }
+    running = false;
+
+    if (jobs.length === 1) {
+      const job = jobs[0];
+      if (job.state === "done") openResult(job);
+      else { renderQueue(); show("pick"); showError("Couldn't analyze this file. " + (job.result ? job.result.error : "")); }
+    } else {
+      updateBatchHead();
+    }
+  };
+
+  $("stop").onclick = () => {
+    stopRequested = true;
+    $("stop").disabled = true;
+    $("stop").textContent = "Stopping after this file…";
+  };
+
+  // ---------------------------------------------------------------- batch table
+  const STATUS_RANK = {"Transcoded": 0, "Lossy source": 1, "Reduced quality": 2, "Inconclusive": 3, "Looks good": 4};
+
+  function sortedJobs() {
+    if (!sort.key) return jobs;
+    const val = (j) => {
+      const r = j.result && j.result.ok ? j.result : null;
+      if (sort.key === "name") return j.file.name.toLowerCase();
+      if (sort.key === "quality") return r ? r.quality : -1;
+      return r ? STATUS_RANK[r.status] ?? 9 : 99;
+    };
+    return [...jobs].sort((a, b) => (val(a) > val(b) ? 1 : val(a) < val(b) ? -1 : 0) * sort.dir);
+  }
+
+  function trackLine(r) {
+    const t = r && r.ok && r.tags;
+    return t ? [t.artist, t.title].filter(Boolean).join(" – ") : "";
+  }
+
+  function rowHtml(job) {
+    const f = job.file, r = job.result;
+    let q = '<span class="muted">—</span>', status = "", equiv = "", cut = "";
+    if (job.state === "done") {
+      q = `<div class="qcell"><b>${r.quality}</b><div class="mini"><div style="width:${r.quality}%;background:${color(r.quality)}"></div></div></div>`;
+      status = `<span class="chip ${r.kind}">${esc(r.status)}</span>`;
+      equiv = esc(r.quality_label.replace(/^equivalent to an MP3 at /, "MP3 "));
+      cut = r.summary.cutoff_khz ? r.summary.cutoff_khz + " kHz" : "none";
+    } else if (job.state === "running") {
+      status = `<span class="muted"><span class="spinner sm"></span>&nbsp; ${esc(job.stage || "Starting")}…</span>
+                <div class="rowbar"><div style="width:${Math.round(job.done * 100)}%"></div></div>`;
+    } else if (job.state === "error") {
+      status = `<span class="err">Couldn't analyze: ${esc(r ? r.error : "unknown error")}</span>`;
+    } else {
+      status = `<span class="chip muted">${job.state === "skipped" ? "Skipped" : "Waiting"}</span>`;
+    }
+    return `<td class="name"><div class="fname" title="${esc(f.path)}">${esc(f.name)}</div><div class="fmeta" title="${esc(folderOf(f.path))}">${esc(trackLine(r) || folderOf(f.path))}</div></td>
+      <td>${q}</td><td>${status}</td><td class="hide-sm">${equiv}</td><td class="hide-sm" style="white-space:nowrap">${cut}</td>
+      <td class="open">${job.state === "done" ? "&rsaquo;" : ""}</td>`;
+  }
+
+  function renderTable() {
+    $("rows").innerHTML = sortedJobs().map((j) => `<tr data-id="${j.id}" class="${j.state}">${rowHtml(j)}</tr>`).join("");
+    document.querySelectorAll("th.sortable").forEach((th) => {
+      th.querySelector(".arrow").textContent = th.dataset.sort === sort.key ? (sort.dir > 0 ? "▲" : "▼") : "";
+    });
+  }
+
+  function updateRow(job) {
+    if (!job || jobs.length < 2) return;
+    const tr = $("rows").querySelector(`tr[data-id="${job.id}"]`);
+    if (!tr) return renderTable();
+    tr.className = job.state;
+    tr.innerHTML = rowHtml(job);
+  }
+
+  function updateBatchHead() {
+    const total = jobs.length;
+    const finished = jobs.filter((j) => j.state === "done" || j.state === "error").length;
+    const current = jobs.find((j) => j.state === "running");
+    const partial = current ? current.done : 0;
+    $("batch-bar").style.width = (100 * (finished + partial) / total) + "%";
+    if (running) {
+      $("batch-title").textContent = `Analyzing ${Math.min(finished + 1, total)} of ${total} files…`;
+      $("batch-sub").textContent = current ? current.file.name : "";
+      $("batch-sub").title = $("batch-sub").textContent;
+    } else {
+      const skipped = jobs.filter((j) => j.state === "skipped").length;
+      $("batch-title").textContent = `${finished} of ${total} files analyzed`;
+      $("batch-sub").textContent = (skipped ? `Stopped early, ${skipped} skipped. ` : "") + "Click a file to see its full report.";
+    }
+    $("stop").hidden = !running;
+    $("stop").disabled = stopRequested;
+    $("stop").textContent = stopRequested ? "Stopping after this file…" : "Stop";
+    $("export").hidden = running || !jobs.some((j) => j.state === "done");
+    $("new-batch").hidden = running;
+
+    const counts = {};
+    for (const j of jobs) {
+      if (j.state === "done") counts[j.result.status] = (counts[j.result.status] || 0) + 1;
+      if (j.state === "error") counts["Errors"] = (counts["Errors"] || 0) + 1;
+    }
+    const kindOf = {"Looks good": "good", "Reduced quality": "warn", "Inconclusive": "warn", "Lossy source": "bad", "Transcoded": "bad", "Errors": "bad"};
+    $("counts").innerHTML = Object.entries(counts)
+      .sort((a, b) => (STATUS_RANK[b[0]] ?? -1) - (STATUS_RANK[a[0]] ?? -1))
+      .map(([k, n]) => `<span class="chip ${kindOf[k]}">${n} ${esc(k)}</span>`).join("");
+  }
+
+  document.querySelectorAll("th.sortable").forEach((th) => th.onclick = () => {
+    const key = th.dataset.sort;
+    sort = {key, dir: sort.key === key ? -sort.dir : (key === "name" ? 1 : -1)};
+    renderTable();
+  });
+  $("rows").addEventListener("click", (e) => {
+    const tr = e.target.closest("tr.done");
+    if (tr) openResult(jobs.find((j) => j.id === +tr.dataset.id));
+  });
+
+  $("export").onclick = async () => {
+    const out = await api().export_csv(jobs.filter((j) => j.state === "done").map((j) => j.file.path));
+    if (out) toast("Saved " + out);
+  };
+  $("new-batch").onclick = () => { $("error").hidden = true; renderQueue(); show("pick"); };
+
+  // ---------------------------------------------------------------- one result
+  let plotFor = null;
+  async function loadPlot(id) {
+    if (plotFor === id || !api()) return;
+    plotFor = id;
+    $("plot").removeAttribute("src");
+    const b64 = await api().plot(id);
+    if (b64 && plotFor === id) $("plot").src = "data:image/png;base64," + b64;
+  }
+  $("plot-wrap").addEventListener("toggle", () => { if ($("plot-wrap").open && currentJob) loadPlot(currentJob.id); });
+
+  let currentJob = null;
+  function openResult(job) {
+    currentJob = job;
+    const r = job.result;
+    const q = r.quality;
+    $("q").textContent = q;
+    const arc = $("gauge-arc");
+    arc.style.transition = "none";
+    arc.style.stroke = color(q);
+    arc.style.strokeDashoffset = 326.73;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      arc.style.transition = "";
+      arc.style.strokeDashoffset = 326.73 * (1 - q / 100);
+    }));
+
+    $("chip").className = "chip " + r.kind;
+    $("chip").textContent = r.status;
+    $("verdict").textContent = r.verdict.replace(/^TRANSCODED - /, "Transcoded: ")
+      .replace(/^VERY LIKELY /, "Very likely ").replace(/^PROBABLY /, "Probably ")
+      .replace(/^INCONCLUSIVE - /, "Inconclusive: ");
+    $("qlabel").textContent = "Quality " + q + "/100 — " + r.quality_label + ".";
+    const near = SCALE.reduce((a, b) => Math.abs(b[0] - q) < Math.abs(a[0] - q) ? b : a);
+    $("scale").innerHTML = SCALE.map(([s, l]) => `<span class="${s === near[0] ? "on" : ""}">${s} = ${l}</span>`).join("");
+    $("rname").textContent = job.file.path;
+
+    const t = r.tags || {};
+    const hasTrack = t.title || t.artist || t.album;
+    $("track").hidden = !hasTrack;
+    $("t-title").textContent = $("t-title").title = t.title || job.file.name;
+    $("t-artist").textContent = $("t-artist").title = t.artist || "";
+    $("t-artist").hidden = !t.artist;
+    const alb = [t.album, t.album_artist && t.album_artist !== t.artist ? t.album_artist : null, t.label, t.year].filter(Boolean);
+    $("t-album").textContent = $("t-album").title = alb.join(" · ");
+    $("t-album").hidden = !alb.length;
+    const chips = [t.genre, t.bpm && t.bpm + " BPM", t.key && "Key " + t.key, t.track && "Track " + t.track].filter(Boolean);
+    $("t-tags").innerHTML = chips.map((c) => `<span>${esc(c)}</span>`).join("");
+    $("t-tags").hidden = !chips.length;
+    $("cover").hidden = !t.cover;
+    $("cover-ph").hidden = !!t.cover;
+    if (t.cover) $("cover").src = t.cover; else $("cover").removeAttribute("src");
+
+    const f = r.format;
+    const rate = f.bitrate_kbps && f.lossy_container
+      ? Math.round(f.bitrate_kbps) + " kbps" + (f.vbr === true ? " VBR" : f.vbr === false ? " CBR" : "")
+      : (f.effective_bits ? f.effective_bits + "-bit" : "—");
+    const cut = r.cutoff.found && r.cutoff.drop_db >= 15 ? (r.cutoff.freq_hz / 1000).toFixed(2) + " kHz" : "None (full band)";
+    const facts = [
+      ["Format", f.codec.replace("MPEG_LAYER_III", "MP3").replace(/^PCM_(\d+)/, "PCM $1-bit") + (f.container && !/MP3/.test(f.container) ? " · " + f.container : "")],
+      [f.lossy_container ? "Bitrate" : "Resolution", rate],
+      ["Sample rate", (f.sample_rate / 1000) + " kHz · " + (f.channels === 1 ? "mono" : f.channels === 2 ? "stereo" : f.channels + " ch")],
+      ["Duration", fmtTime(f.duration_s)],
+      ["Frequency cutoff", cut],
+      ["Peak level", (r.peak_dbfs > 0 ? "+" : "") + r.peak_dbfs + " dBFS"],
+    ];
+    $("facts").innerHTML = facts.map(([k, v]) => `<div class="fact"><div class="k">${k}</div><div class="v">${esc(v)}</div></div>`).join("");
+
+    const row = (x) => `<div class="finding"><div class="pill ${x.level}">${x.level === "none" ? "pass" : x.level}</div>
+      <div><div class="t">${esc(x.title)}</div><div class="d">${esc(x.text)}</div></div></div>`;
+    const main = r.findings.filter((x) => x.level !== "none");
+    const passed = r.findings.filter((x) => x.level === "none");
+    $("findings").innerHTML = main.length ? main.map(row).join("") : `<div class="finding"><div class="d">No signs of lossy compression.</div></div>`;
+    $("passed").innerHTML = passed.map(row).join("");
+    $("passed-sum").textContent = passed.length + " check" + (passed.length === 1 ? "" : "s") + " found nothing";
+    $("passed-wrap").hidden = !passed.length;
+    $("passed-wrap").open = false;
+
+    $("notes").innerHTML = r.upconversion.map((u) => `<li>${esc(u)}</li>`).join("");
+    $("notes-wrap").hidden = !r.upconversion.length;
+    plotFor = null;
+    $("plot-wrap").open = true;
+    loadPlot(job.id);
+
+    const inBatch = jobs.length > 1;
+    $("result-bar").hidden = !inBatch;
+    const pos = jobs.indexOf(job) + 1;
+    $("rb-name").textContent = $("rb-name").title = `File ${pos} of ${jobs.length} · ${job.file.name}`;
+    $("again").textContent = inBatch ? "Back to all results" : "Analyze other files";
+    show("result");
+  }
+
+  $("back").onclick = () => { renderTable(); show("batch"); };
+  $("again").onclick = () => {
+    if (jobs.length > 1) { renderTable(); show("batch"); return; }
+    renderQueue();
+    show("pick");
+  };
+</script>
+</body>
+</html>
