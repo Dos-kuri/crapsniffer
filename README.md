@@ -11,7 +11,7 @@ Checks whether an audio file has been through lossy compression (MP3, AAC, Vorbi
 | Your computer | File |
 |---|---|
 | Mac with Apple Silicon (M1, M2, M3, M4) - macOS 14+ | `CrapSniffer-…-macOS-arm64.dmg` |
-| Mac with an Intel processor - macOS 12+ | `CrapSniffer-…-macOS-x86_64.dmg` |
+| Mac with an Intel processor - macOS 14+ | `CrapSniffer-…-macOS-x86_64.dmg` |
 | Windows 10 / 11 (64-bit) | `CrapSniffer-…-Windows.exe` |
 
 The release page also explains how to get past the "unidentified developer" / "Windows protected your PC" warning on first launch.
@@ -57,7 +57,7 @@ The build config is `packaging/crapsniffer.spec`, with the icon and splash image
 
 ## Sharing CrapSniffer on macOS (.dmg installer)
 
-The Mac version is a standard installer: `CrapSniffer-<version>-macOS-arm64.dmg` for Apple Silicon Macs (M1–M4), or `…-x86_64.dmg` for Intel Macs. Open the .dmg, drag **CrapSniffer** onto **Applications**, and launch it from there. It needs macOS 14 Sonoma or newer on Apple Silicon, and macOS 12 or newer on Intel.
+The Mac version is a standard installer: `CrapSniffer-<version>-macOS-arm64.dmg` for Apple Silicon Macs (M1–M4), or `…-x86_64.dmg` for Intel Macs. Open the .dmg, drag **CrapSniffer** onto **Applications**, and launch it from there. It needs macOS 14 Sonoma or newer, on both Apple Silicon and Intel.
 
 **A Mac app has to be built on a Mac.** PyInstaller can't produce one from Windows. There are two ways to get the .dmg:
 

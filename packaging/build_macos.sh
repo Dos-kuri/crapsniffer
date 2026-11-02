@@ -10,7 +10,9 @@
 #
 # Optional environment variables:
 #   CRAPSNIFFER_VERSION     version shown in Finder / About (default 1.0.0)
-#   CRAPSNIFFER_MIN_MACOS   oldest macOS allowed to open it (default 14.0 arm64, 12.0 Intel)
+#   CRAPSNIFFER_MIN_MACOS   oldest macOS allowed to open it (default 14.0: numpy/scipy's
+#                           Accelerate wheels need it); the build fails if any bundled
+#                           binary needs a newer macOS than this
 #   SKIP_SELF_TEST=1        skip analysing test audio with the packaged app
 #   CODESIGN_IDENTITY       "Developer ID Application: Name (TEAMID)" - sign for real instead of ad-hoc
 #   APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD
@@ -25,12 +27,11 @@ fi
 
 ARCH="$(uname -m)"
 CRAPSNIFFER_VERSION="${CRAPSNIFFER_VERSION:-1.0.0}"
-if [ "$ARCH" = "arm64" ]; then
-    CRAPSNIFFER_MIN_MACOS="${CRAPSNIFFER_MIN_MACOS:-14.0}"
-else
-    CRAPSNIFFER_MIN_MACOS="${CRAPSNIFFER_MIN_MACOS:-12.0}"
-fi
+CRAPSNIFFER_MIN_MACOS="${CRAPSNIFFER_MIN_MACOS:-14.0}"
 export CRAPSNIFFER_VERSION CRAPSNIFFER_MIN_MACOS
+# Only uv's portable Python builds: a Homebrew or system Python on the build Mac is
+# compiled for that Mac's macOS and links its system libraries (1.0.1 failed on older Macs).
+export UV_PYTHON_PREFERENCE=only-managed
 
 if ! command -v uv >/dev/null 2>&1; then
     echo "==> Installing uv (Python package manager)"
@@ -45,6 +46,9 @@ echo "==> Building CrapSniffer.app ($ARCH, macOS $CRAPSNIFFER_MIN_MACOS+, versio
 rm -rf build dist
 uv run --no-sync pyinstaller packaging/crapsniffer-macos.spec --noconfirm
 APP="dist/CrapSniffer.app"
+
+echo "==> Checking every bundled binary runs on macOS $CRAPSNIFFER_MIN_MACOS"
+uv run --no-sync python packaging/check_min_macos.py "$APP" "$CRAPSNIFFER_MIN_MACOS"
 
 if [ "${SKIP_SELF_TEST:-0}" != "1" ]; then
     echo "==> Self-test: analysing generated audio with the packaged app"
