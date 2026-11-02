@@ -4,6 +4,18 @@
 
 Checks whether an audio file has been through lossy compression (MP3, AAC, Vorbis, Opus) at some point, even when it is now stored as WAV/FLAC/AIFF. It also checks whether a lossy file was re-encoded from an earlier, lower-bitrate copy.
 
+## Download
+
+**[Get the latest version](https://github.com/Dos-kuri/crapsniffer/releases/latest)**, then pick the file under **Assets** that matches your computer:
+
+| Your computer | File |
+|---|---|
+| Mac with Apple Silicon (M1, M2, M3, M4) - macOS 14+ | `CrapSniffer-…-macOS-arm64.dmg` |
+| Mac with an Intel processor - macOS 12+ | `CrapSniffer-…-macOS-x86_64.dmg` |
+| Windows 10 / 11 (64-bit) | `CrapSniffer-…-Windows.exe` |
+
+The release page also explains how to get past the "unidentified developer" / "Windows protected your PC" warning on first launch.
+
 ## Desktop app
 
 Double-click **`CrapSniffer.lnk`** in this folder (a copy is on the Desktop), or run:
