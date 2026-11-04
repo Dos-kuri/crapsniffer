@@ -154,25 +154,32 @@ def _ffmpeg_exe() -> str:
     return imageio_ffmpeg.get_ffmpeg_exe()
 
 
+def run_ffmpeg(args: list[str]) -> tuple[int, str]:
+    """Run ffmpeg with these arguments and return (exit code, its log output).
+
+    The web version (web/crapsniffer_web.py) replaces this with ffmpeg compiled for the browser.
+    """
+    p = subprocess.run([_ffmpeg_exe(), *args], capture_output=True, text=True, errors="replace",
+                       creationflags=NO_WINDOW)
+    return p.returncode, p.stderr
+
+
 def _load_ffmpeg(path: str) -> Audio:
-    exe = _ffmpeg_exe()
-    probe = subprocess.run([exe, "-hide_banner", "-i", path], capture_output=True, text=True, errors="replace",
-                           creationflags=NO_WINDOW)
-    stream = re.search(r"Stream #\S+.*?: Audio: (\w+)[^,]*, (\d+) Hz, ([^,]+), (\w+)(?:, (\d+) kb/s)?", probe.stderr)
+    _, log = run_ffmpeg(["-hide_banner", "-i", path])
+    stream = re.search(r"Stream #\S+.*?: Audio: (\w+)[^,]*, (\d+) Hz, ([^,]+), (\w+)(?:, (\d+) kb/s)?", log)
     if not stream:
         raise RuntimeError(f"Could not find an audio stream in {path}")
     codec, rate, _layout, sample_fmt, stream_kbps = stream.groups()
-    container = re.search(r"Input #0, ([^,]+)", probe.stderr)
-    overall_kbps = re.search(r"bitrate: (\d+) kb/s", probe.stderr)
+    container = re.search(r"Input #0, ([^,]+)", log)
+    overall_kbps = re.search(r"bitrate: (\d+) kb/s", log)
 
     with tempfile.TemporaryDirectory() as tmp:
         out = os.path.join(tmp, "decoded.wav")
         # Keep the native sample rate and channel count; float output so nothing is rounded.
-        subprocess.run(
-            [exe, "-hide_banner", "-loglevel", "error", "-i", path, "-map", "0:a:0",
-             "-c:a", "pcm_f64le", out],
-            check=True, capture_output=True, creationflags=NO_WINDOW,
-        )
+        code, err = run_ffmpeg(["-hide_banner", "-loglevel", "error", "-i", path, "-map", "0:a:0",
+                                 "-c:a", "pcm_f64le", out])
+        if code != 0:
+            raise RuntimeError(f"ffmpeg could not decode the file: {err.strip()[-300:]}")
         samples = sf.read(out, dtype="float64", always_2d=True)[0]
 
     # Lossless integer codecs (ALAC, WavPack, APE...) report s16/s16p/s32/s32p
@@ -180,7 +187,7 @@ def _load_ffmpeg(path: str) -> Audio:
     if codec not in LOSSY_CODECS:
         m = re.match(r"s(16|32)", sample_fmt)
         bits = int(m.group(1)) if m else None
-        bits_raw = re.search(r"\((\d+) bit\)", probe.stderr)
+        bits_raw = re.search(r"\((\d+) bit\)", log)
         if bits_raw:
             bits = int(bits_raw.group(1))
     int_samples = None
@@ -188,6 +195,12 @@ def _load_ffmpeg(path: str) -> Audio:
         int_samples = np.round(samples * 2.0**31).clip(-2**31, 2**31 - 1).astype(np.int32)
 
     kbps = stream_kbps or (overall_kbps.group(1) if overall_kbps else None)
+    bitrate = float(kbps) if kbps else None
+    vbr = encoder = None
+    if codec == "mp3":  # same Xing/Info header reading as the soundfile path
+        vbr, encoder, audio_bytes = mp3_header(path)
+        if audio_bytes and len(samples):
+            bitrate = audio_bytes * 8 / (len(samples) / int(rate)) / 1000
     return Audio(
         path=path,
         samples=samples,
@@ -198,5 +211,7 @@ def _load_ffmpeg(path: str) -> Audio:
         container_bits=bits,
         is_float=sample_fmt.startswith("flt") or sample_fmt.startswith("dbl"),
         is_lossy_container=codec in LOSSY_CODECS,
-        bitrate_kbps=float(kbps) if kbps else None,
+        bitrate_kbps=bitrate,
+        vbr=vbr,
+        encoder=encoder,
     )

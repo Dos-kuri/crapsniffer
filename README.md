@@ -16,6 +16,19 @@ Checks whether an audio file has been through lossy compression (MP3, AAC, Vorbi
 
 The release page also explains how to get past the "unidentified developer" / "Windows protected your PC" warning on first launch.
 
+## Website
+
+**[Use CrapSniffer in your browser](https://dos-kuri.github.io/crapsniffer/)**: no install, on any computer with a modern browser (Chrome, Edge, Firefox, Safari).
+
+It's the same page and the same analysis engine as the desktop app, running inside the browser through [Pyodide](https://pyodide.org/) (Python compiled for the web). Files are read straight from the visitor's disk and **never uploaded**. The first analysis downloads the engine (about 40 MB) from the jsDelivr CDN, and the browser caches it after that. M4A/AAC, Opus and WMA files also fetch [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm) (about 30 MB) the first time one is analysed. Analysis takes roughly twice as long as in the desktop app, and very long WAV files can run out of browser memory, especially on phones.
+
+How it fits together:
+
+- `lossy_detect/ui/index.html` is the page for both versions. In the desktop app it talks to Python through pywebview; on the website, `web/web.js` provides the same calls.
+- `web/worker.js` runs the analysis in a background thread so the page stays responsive. `web/crapsniffer_web.py` connects it to the engine.
+- `python tools/build_web.py` assembles the site into `build/web/`. To try it locally, run `uv run python -m http.server 8766 --directory build/web` and open http://localhost:8766.
+- `.github/workflows/pages.yml` rebuilds and publishes the site whenever the code changes on `main`.
+
 ## Desktop app
 
 Double-click **`CrapSniffer.lnk`** in this folder (a copy is on the Desktop), or run:

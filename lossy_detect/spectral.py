@@ -29,7 +29,12 @@ def stft_power(x: np.ndarray, nfft: int, hop: int) -> np.ndarray:
     """Power spectrogram, shape (frames, nfft//2+1), Hann window, float32."""
     if len(x) < nfft:
         x = np.pad(x, (0, nfft - len(x)))
-    frames = np.lib.stride_tricks.sliding_window_view(x, nfft)[::hop]
+    # Strided view of just the frames used. (sliding_window_view(x, nfft)[::hop] gives the same
+    # frames, but first describes every possible window: too big to address in the browser's 32-bit memory.)
+    x = np.ascontiguousarray(x)
+    n_frames = (len(x) - nfft) // hop + 1
+    frames = np.lib.stride_tricks.as_strided(x, shape=(n_frames, nfft), strides=(x.strides[0] * hop, x.strides[0]),
+                                             writeable=False)
     win = np.hanning(nfft).astype(np.float32)
     out = np.empty((frames.shape[0], nfft // 2 + 1), dtype=np.float32)
     for i in range(0, frames.shape[0], 512):  # chunked to bound memory

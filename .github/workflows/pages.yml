@@ -1,0 +1,43 @@
+# Publishes the CrapSniffer website (runs in the visitor's browser) to GitHub Pages:
+#   https://dos-kuri.github.io/crapsniffer/
+# Runs whenever the analysis code, the page or the web files change on main, or by hand from
+# Actions -> Publish website -> Run workflow. One-time setup: Settings -> Pages -> Source: GitHub Actions.
+
+name: Publish website
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "lossy_detect/**"
+      - "web/**"
+      - "tools/build_web.py"
+      - "packaging/crapsniffer.png"
+      - ".github/workflows/pages.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Assemble the site
+        run: python3 tools/build_web.py site
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v5

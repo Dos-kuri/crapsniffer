@@ -206,6 +206,9 @@
   .plot { display: block; width: 100%; border-radius: 10px; margin-top: 10px; background: var(--surface-2); }
   .plot:not([src]) { aspect-ratio: 12 / 11; }
   .error { margin-top: 18px; padding: 14px 18px; border-radius: 12px; color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent); user-select: text; overflow-wrap: anywhere; }
+  .web-note { margin-top: 6px !important; }
+  .web-foot { margin-top: 28px; text-align: center; color: var(--muted); font-size: 13px; }
+  .web-foot a { color: var(--accent); }
   .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); border-radius: 10px; padding: 10px 16px; font-size: 14px; max-width: calc(100% - 32px); overflow-wrap: anywhere; }
 
   @media (max-width: 720px) {
@@ -373,7 +376,8 @@
 
 <script>
   const $ = (id) => document.getElementById(id);
-  const api = () => window.pywebview && window.pywebview.api;
+  // Desktop app: pywebview's bridge to Python. Website: web/web.js provides the same calls.
+  const api = () => (window.pywebview && window.pywebview.api) || window.webApi;
 
   // queue: files waiting to be analysed; jobs: the current run, one per file
   let queue = [];
@@ -445,7 +449,9 @@
   window.addEventListener("drop", (e) => {
     e.preventDefault();
     depth = 0; dz.classList.remove("over");
-    if (!api()) showError("Drag and drop only works inside the CrapSniffer app window.");
+    if (!api()) return showError("Drag and drop only works inside the CrapSniffer app window.");
+    // The desktop app resolves dropped paths in Python; the website reads them here.
+    if (api().dropped && e.dataTransfer) api().dropped(e.dataTransfer).then(window.onFilesAdded);
   });
 
   async function browse(folder) {
@@ -629,8 +635,8 @@
     if (plotFor === id || !api()) return;
     plotFor = id;
     $("plot").removeAttribute("src");
-    const b64 = await api().plot(id);
-    if (b64 && plotFor === id) $("plot").src = "data:image/png;base64," + b64;
+    const png = await api().plot(id);  // base64 from the desktop app, a blob: URL on the website
+    if (png && plotFor === id) $("plot").src = png.startsWith("blob:") ? png : "data:image/png;base64," + png;
   }
   $("plot-wrap").addEventListener("toggle", () => { if ($("plot-wrap").open && currentJob) loadPlot(currentJob.id); });
 
